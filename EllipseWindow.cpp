@@ -94,7 +94,42 @@ void CEllipseWindow::OnChangeColor()
 	} else {
 		currentEllipseColor = colorStruct.rgbResult;
 	}
-	// todo: repaint ellipse
+}
+
+BOOL WINAPI DialogProc( HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam )
+{
+	CEllipseWindow* currentWindow = reinterpret_cast< CEllipseWindow* >( ::GetWindowLong( ::GetParent( hwndDlg ), GWL_USERDATA ) );
+	switch( message ) {
+		case WM_CLOSE:
+			currentWindow->OnCloseDialog();
+			return TRUE;
+		case WM_COMMAND:
+			switch( LOWORD( wParam ) ) {
+				case IDC_CHANGE_COLOR:
+					currentWindow->OnChangeColor();
+					return TRUE;
+				case IDOK:
+					// ok button
+					currentWindow->OnCloseDialog();
+					return TRUE;
+				case IDCANCEL:
+					// cancel button
+					currentWindow->OnCloseDialog();
+					return TRUE;
+			}
+	}
+	return FALSE;
+}
+
+void CEllipseWindow::OnShowDialog()
+{
+	dialogHandle = ::CreateDialog( GetModuleHandle( 0 ), MAKEINTRESOURCE( IDD_DIALOG1 ), handle, DialogProc );
+	::ShowWindow( dialogHandle, SW_SHOWNORMAL );
+}
+
+void CEllipseWindow::OnCloseDialog()
+{
+	::DestroyWindow( dialogHandle );
 }
 
 LRESULT WINAPI CEllipseWindow::windowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -118,8 +153,8 @@ LRESULT WINAPI CEllipseWindow::windowProc( HWND hWnd, UINT message, WPARAM wPara
 			break;
 		case WM_COMMAND:
 			switch( LOWORD( wParam ) ) {
-				case ID_PICTURE_COLOR:
-					currentWindow->OnChangeColor();
+				case ID_MENU:
+					currentWindow->OnShowDialog();
 					break;
 				default:
 					break;
