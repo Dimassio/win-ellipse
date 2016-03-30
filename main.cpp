@@ -1,5 +1,6 @@
 ﻿#include <Windows.h>
 #include "EllipseWindow.h"
+#include "Ellipse.h"
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR commandLine, int nCmdShow )
 {

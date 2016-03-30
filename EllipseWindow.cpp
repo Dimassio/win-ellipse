@@ -1,10 +1,13 @@
 #include <Windows.h>
 #include "resource.h"
 #include "EllipseWindow.h"
+#include <cassert>
 
 CEllipseWindow::CEllipseWindow()
 {
-	currentEllipseColor = RGB( 255, 255, 255 );
+	text.string = L"Hello world!";
+	text.length = 13;
+	text.font = FW_NORMAL;
 }
 
 CEllipseWindow::~CEllipseWindow()
@@ -35,6 +38,18 @@ bool CEllipseWindow::Create( HINSTANCE hInstance )
 	handle = ::CreateWindow( L"Ellipse", L"Эллипс и Hello world", WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL,
 							 CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL,
 							 LoadMenu( hInstance, MAKEINTRESOURCE( IDR_MENU1 ) ), hInstance, this );
+	RECT rect;
+	::GetClientRect( handle, &rect );
+	currWinHeight = ( rect.bottom - rect.top );
+	currWinWidth = ( rect.right - rect.left );
+	ellipse.SetColor( RGB( 100, 100, 100 ) );
+	ellipse.SetCenter( ( rect.right - rect.left ) / 2, ( rect.bottom - rect.top ) / 2 );
+	ellipse.SetSize( 300, 100 );
+
+	text.rect.left = ellipse.GetLeft();
+	text.rect.right = ellipse.GetRight();
+	text.rect.bottom = ellipse.GetBottom();
+	text.rect.top = ellipse.GetTop();
 	return handle != 0;
 }
 
@@ -49,32 +64,35 @@ void CEllipseWindow::OnDestroy()
 	::PostQuitMessage( 0 );
 }
 
-void CEllipseWindow::OnSize()
+void CEllipseWindow::OnSize( LPARAM lParam )
 {
+	RECT currentRect;
+	::GetClientRect( handle, &currentRect );
+	int newHeight = HIWORD( lParam );
+	int newWidth = LOWORD( lParam );
+	double kHeight = (double) newHeight / ( double ) currWinHeight;
+	double kWidth = (double) newWidth / ( double ) currWinWidth;
+	int currWidth = ellipse.GetRight() - ellipse.GetLeft();
+	int currHeight = ellipse.GetBottom() - ellipse.GetTop();
+	ellipse.SetSize( (currWidth * kWidth) / 2, (currHeight * kHeight) / 2 ); 
+	currWinHeight = currentRect.bottom - currentRect.top;
+	currWinWidth = currentRect.right - currentRect.left;
 }
 
 void CEllipseWindow::OnPaint()
 {
-	// paint ellipse and @Hello world@
-	/*
-	Для ресайза битмапки
-	HBITMAP hBitmap = LoadBitmap( GetModuleHandle( NULL ), MAKEINTRESOURCE( IDB_BITMAP1 ) );
-	BITMAP bp;
-	GetObject( hBitmap, sizeof( bp ), &bp );
-
-	HDC hdcInst, hdcBitmap;
 	PAINTSTRUCT ps;
-	hdcInst = BeginPaint( handle , &ps );
-	hdcBitmap = CreateCompatibleDC( hdcInst );
-	SelectObject( hdcBitmap, hBitmap );
+	HDC hdc = ::BeginPaint( handle, &ps );  // Контекст устройства 
+	ellipse.Draw( hdc );
+	HFONT newFont = ::CreateFont( 25, 20, 120, 0, text.font, 3, 4, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+						  DEFAULT_PITCH | FF_DONTCARE, L"Arial" );
 
-	RECT r;
-	GetClientRect( handle, &r );
-
-	StretchBlt( hdcInst, 0, 0, r.right - r.left, r.bottom - r.top, hdcBitmap, 0, 0, bp.bmWidth, bp.bmHeight, MERGECOPY );
-
-	DeleteDC( hdcBitmap );
-	EndPaint( handle, &ps );*/
+	HFONT oldFont = ( HFONT ) SelectObject( hdc, newFont );
+	::DrawText( hdc, text.string, text.length, &text.rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER | WS_EX_TRANSPARENT );
+	::SelectObject( hdc, oldFont );
+	::EndPaint( handle, &ps );
+	DeleteObject( oldFont );
+	DeleteObject( newFont );
 }
 
 void CEllipseWindow::OnChangeColor()
@@ -92,7 +110,7 @@ void CEllipseWindow::OnChangeColor()
 		::MessageBox( handle, L"Wrong choose color", NULL, MB_OK );
 		return;
 	} else {
-		currentEllipseColor = colorStruct.rgbResult;
+		ellipse.SetColor( colorStruct.rgbResult );
 	}
 }
 
@@ -109,11 +127,10 @@ BOOL WINAPI DialogProc( HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam
 					currentWindow->OnChangeColor();
 					return TRUE;
 				case IDOK:
-					// ok button
+					currentWindow->OnOkDialog( hwndDlg );
 					currentWindow->OnCloseDialog();
 					return TRUE;
 				case IDCANCEL:
-					// cancel button
 					currentWindow->OnCloseDialog();
 					return TRUE;
 			}
@@ -121,9 +138,45 @@ BOOL WINAPI DialogProc( HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam
 	return FALSE;
 }
 
+void CEllipseWindow::OnOkDialog( HWND hwndDlg )
+{
+	if( ::IsDlgButtonChecked( hwndDlg, IDC_RADIO1 ) == BST_CHECKED ) {
+		text.font = FW_NORMAL;
+	}
+	if( ::IsDlgButtonChecked( hwndDlg , IDC_RADIO2) == BST_CHECKED ) {
+		text.font = FW_BOLD;
+	}
+	if( ::IsDlgButtonChecked( hwndDlg, IDC_RADIO3 ) == BST_CHECKED ) {
+		text.font = FW_THIN;
+	}
+	HWND dlgHandle = ::GetDlgItem( hwndDlg, IDC_EDIT1 );
+	DWORD length = ::SendMessage( dlgHandle, WM_GETTEXTLENGTH, 0, 0 ); // сообщение получить длинну текста
+	wchar_t* buffer = new wchar_t[length];
+	::SendMessage( dlgHandle, WM_GETTEXT, ( WPARAM ) length + 1, ( LPARAM ) buffer );
+	if( buffer != L"" ) {
+		text.string = buffer;
+		text.length = length;
+	}
+	::InvalidateRect( handle, 0, TRUE );
+}
+
 void CEllipseWindow::OnShowDialog()
 {
 	dialogHandle = ::CreateDialog( GetModuleHandle( 0 ), MAKEINTRESOURCE( IDD_DIALOG1 ), handle, DialogProc );
+	switch( text.font ) {
+		case FW_THIN:
+			::CheckRadioButton( dialogHandle, IDC_RADIO1, IDC_RADIO3, IDC_RADIO3 );
+			break;
+		case FW_BOLD:
+			::CheckRadioButton( dialogHandle, IDC_RADIO1, IDC_RADIO3, IDC_RADIO2 );
+			break;
+		case FW_NORMAL:
+			::CheckRadioButton( dialogHandle, IDC_RADIO1, IDC_RADIO3, IDC_RADIO1 );
+			break;
+		default:
+			assert( false );
+	}
+	::SendMessage( dialogHandle, WM_SETTEXT, ( WPARAM ) text.length + 1, ( LPARAM ) text.string );
 	::ShowWindow( dialogHandle, SW_SHOWNORMAL );
 }
 
@@ -143,7 +196,7 @@ LRESULT WINAPI CEllipseWindow::windowProc( HWND hWnd, UINT message, WPARAM wPara
 			( ( CEllipseWindow* )::GetWindowLong( hWnd, GWL_USERDATA ) )->handle = hWnd;
 		} break;
 		case WM_SIZE:
-			currentWindow->OnSize();
+			currentWindow->OnSize( lParam );
 			break;
 		case WM_DESTROY:
 			currentWindow->OnDestroy();

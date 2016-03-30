@@ -1,5 +1,14 @@
 ﻿#pragma once 
 
+#include "Ellipse.h"
+
+struct TText {
+	wchar_t* string;
+	int length;
+	RECT rect;
+	UINT font;
+};
+
 class CEllipseWindow {
 public:
 	CEllipseWindow();
@@ -8,19 +17,27 @@ public:
 	static bool RegisterClass( HINSTANCE hInstance );
 	bool Create( HINSTANCE hInstance );
 	void Show( int cmdShow );
-	void OnCloseDialog(); 
+	
+	// Dialog
+	void OnShowDialog();
+	void OnCloseDialog();
 	void OnChangeColor();
+	void OnOkDialog( HWND handle );
 
 protected:
+	// Window
 	void OnDestroy();
-	void OnSize();
+	void OnSize( LPARAM lParam );
 	void OnPaint();
-	void OnShowDialog();
-	
+
 private:
 	HWND handle;
 	HWND dialogHandle;
-	COLORREF currentEllipseColor;
+	int currWinWidth;
+	int currWinHeight;
+	CEllipse ellipse;
+	TText text;
+	
 
 	static LRESULT WINAPI windowProc( HWND handle, UINT message, WPARAM wParam, LPARAM lParam );
 };
