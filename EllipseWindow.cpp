@@ -35,17 +35,25 @@ bool CEllipseWindow::RegisterClass( HINSTANCE hInstance )
 
 bool CEllipseWindow::Create( HINSTANCE hInstance )
 {
-	handle = ::CreateWindow( L"Ellipse", L"Ёллипс и Hello world", WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL,
+	handle = ::CreateWindow( L"Ellipse", L"Ёллипс и Hello world",
+							 WS_OVERLAPPEDWINDOW | WS_HSCROLL | WS_VSCROLL,
 							 CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL,
 							 LoadMenu( hInstance, MAKEINTRESOURCE( IDR_MENU1 ) ), hInstance, this );
+	// Ellipse initializing
 	RECT rect;
 	::GetClientRect( handle, &rect );
 	currWinHeight = ( rect.bottom - rect.top );
 	currWinWidth = ( rect.right - rect.left );
 	ellipse.SetColor( RGB( 100, 100, 100 ) );
 	ellipse.SetCenter( ( rect.right - rect.left ) / 2, ( rect.bottom - rect.top ) / 2 );
-	ellipse.SetSize( 300, 100 );
+	RECT newRect;
+	newRect.left = ( rect.right - rect.left ) / 2 - 300;
+	newRect.right = ( rect.right - rect.left ) / 2 + 300;
+	newRect.top = ( rect.bottom - rect.top ) / 2 - 80;
+	newRect.bottom = ( rect.bottom - rect.top ) / 2 + 80;
+	ellipse.SetSize( newRect );
 
+	// Text initializing
 	text.rect.left = ellipse.GetLeft();
 	text.rect.right = ellipse.GetRight();
 	text.rect.bottom = ellipse.GetBottom();
@@ -66,26 +74,29 @@ void CEllipseWindow::OnDestroy()
 
 void CEllipseWindow::OnSize( LPARAM lParam )
 {
-	RECT currentRect;
-	::GetClientRect( handle, &currentRect );
 	int newHeight = HIWORD( lParam );
 	int newWidth = LOWORD( lParam );
-	double kHeight = (double) newHeight / ( double ) currWinHeight;
-	double kWidth = (double) newWidth / ( double ) currWinWidth;
-	int currWidth = ellipse.GetRight() - ellipse.GetLeft();
-	int currHeight = ellipse.GetBottom() - ellipse.GetTop();
-	ellipse.SetSize( (currWidth * kWidth) / 2, (currHeight * kHeight) / 2 ); 
-	currWinHeight = currentRect.bottom - currentRect.top;
-	currWinWidth = currentRect.right - currentRect.left;
+	double kHeight = ( double ) newHeight / ( double ) currWinHeight;
+	double kWidth = ( double ) newWidth / ( double ) currWinWidth;
+	RECT newRect;
+	newRect.left = ellipse.GetCenter().x - ( ellipse.GetRight() - ellipse.GetLeft() ) * kWidth / 2;
+	newRect.right = ellipse.GetCenter().x + ( ellipse.GetRight() - ellipse.GetLeft() ) * kWidth / 2;
+	newRect.top = ellipse.GetCenter().y - ( ellipse.GetBottom() - ellipse.GetTop() ) * kHeight / 2;
+	newRect.bottom = ellipse.GetCenter().y + ( ellipse.GetBottom() - ellipse.GetTop() ) * kHeight / 2;
+	ellipse.SetSize( newRect );
+	currWinHeight = newHeight;
+	currWinWidth = newWidth;
+	::InvalidateRect( handle, 0, TRUE );
 }
 
 void CEllipseWindow::OnPaint()
 {
+	//drawBitmap(); todo
 	PAINTSTRUCT ps;
 	HDC hdc = ::BeginPaint( handle, &ps );  //  онтекст устройства 
 	ellipse.Draw( hdc );
 	HFONT newFont = ::CreateFont( 25, 20, 120, 0, text.font, 3, 4, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-						  DEFAULT_PITCH | FF_DONTCARE, L"Arial" );
+								  DEFAULT_PITCH | FF_DONTCARE, L"Arial" );
 
 	HFONT oldFont = ( HFONT ) SelectObject( hdc, newFont );
 	::DrawText( hdc, text.string, text.length, &text.rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER | WS_EX_TRANSPARENT );
@@ -143,7 +154,7 @@ void CEllipseWindow::OnOkDialog( HWND hwndDlg )
 	if( ::IsDlgButtonChecked( hwndDlg, IDC_RADIO1 ) == BST_CHECKED ) {
 		text.font = FW_NORMAL;
 	}
-	if( ::IsDlgButtonChecked( hwndDlg , IDC_RADIO2) == BST_CHECKED ) {
+	if( ::IsDlgButtonChecked( hwndDlg, IDC_RADIO2 ) == BST_CHECKED ) {
 		text.font = FW_BOLD;
 	}
 	if( ::IsDlgButtonChecked( hwndDlg, IDC_RADIO3 ) == BST_CHECKED ) {
@@ -185,6 +196,74 @@ void CEllipseWindow::OnCloseDialog()
 	::DestroyWindow( dialogHandle );
 }
 
+void CEllipseWindow::OnVScroll( WPARAM wParam )
+{
+	switch( LOWORD( wParam ) ) {
+		case SB_LINEUP:
+			vScroll.currPos = max( 0, vScroll.currPos - 1 );
+			break;
+		case SB_LINEDOWN:
+			vScroll.currPos = min( vScroll.maxRange, vScroll.currPos + 1 );
+			break;
+		case SB_PAGEUP:
+			vScroll.currPos = max( 0, vScroll.currPos - 10 );
+			break;
+		case SB_PAGEDOWN:
+			vScroll.currPos = min( vScroll.maxRange, vScroll.currPos + 10 );
+			break;
+		case SB_THUMBPOSITION:
+			vScroll.currPos = HIWORD( wParam );
+			break;
+		default:
+			break;
+	}
+	// »зменили положение скролла
+	if( vScroll.currPos != GetScrollPos( handle, SB_VERT ) ) {
+		SetScrollPos( handle, SB_VERT, vScroll.currPos, TRUE );
+		InvalidateRect( handle, NULL, FALSE );
+	}
+}
+
+void CEllipseWindow::OnHScroll( WPARAM wParam )
+{
+	switch( LOWORD( wParam ) ) {
+		case SB_LINELEFT:
+			hScroll.currPos = max( 0, hScroll.currPos - 1 );
+			break;
+		case SB_LINERIGHT:
+			hScroll.currPos = min( hScroll.maxRange, hScroll.currPos + 1 );
+			break;
+		case SB_PAGELEFT:
+			hScroll.currPos = max( 0, hScroll.currPos - 10 );
+			break;
+		case SB_PAGERIGHT:
+			hScroll.currPos = min( hScroll.maxRange, hScroll.currPos + 10 );
+			break;
+		case SB_THUMBPOSITION:
+			hScroll.currPos = HIWORD( wParam );
+			break;
+		default:
+			break;
+	}
+	// »зменили положение скролла
+	if( hScroll.currPos != GetScrollPos( handle, SB_HORZ ) ) {
+		SetScrollPos( handle, SB_HORZ, hScroll.currPos, TRUE );
+		InvalidateRect( handle, NULL, FALSE );
+	}
+}
+
+void CEllipseWindow::OnCreate()
+{
+	vScroll.currPos = 0;
+	vScroll.maxRange = 500;
+	::SetScrollRange( handle, SB_VERT, 0, 500, FALSE );
+	::SetScrollPos( handle, SB_VERT, 0, TRUE );
+	hScroll.currPos = 0;
+	hScroll.maxRange = 820;
+	::SetScrollRange( handle, SB_HORZ, 0, 820, FALSE );
+	::SetScrollPos( handle, SB_HORZ, 0, TRUE );
+}
+
 LRESULT WINAPI CEllipseWindow::windowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
 	CEllipseWindow* currentWindow = reinterpret_cast< CEllipseWindow* >( ::GetWindowLong( hWnd, GWL_USERDATA ) );
@@ -194,7 +273,11 @@ LRESULT WINAPI CEllipseWindow::windowProc( HWND hWnd, UINT message, WPARAM wPara
 			CREATESTRUCT* str = ( CREATESTRUCT* ) lParam;
 			::SetWindowLong( hWnd, GWL_USERDATA, LONG( str->lpCreateParams ) );
 			( ( CEllipseWindow* )::GetWindowLong( hWnd, GWL_USERDATA ) )->handle = hWnd;
-		} break;
+			break;
+		}
+		case WM_CREATE:
+			currentWindow->OnCreate();
+			break;
 		case WM_SIZE:
 			currentWindow->OnSize( lParam );
 			break;
@@ -211,8 +294,35 @@ LRESULT WINAPI CEllipseWindow::windowProc( HWND hWnd, UINT message, WPARAM wPara
 					break;
 				default:
 					break;
-			}
+			} break;
+		case WM_VSCROLL:
+			currentWindow->OnVScroll( wParam );
+			break;
+		case WM_HSCROLL:
+			currentWindow->OnHScroll( wParam );
+			break;
 	}
 
 	return ::DefWindowProc( hWnd, message, wParam, lParam );
+}
+
+void CEllipseWindow::drawBitmap()
+{
+	PAINTSTRUCT ps;
+	BITMAP bm;
+	HDC hdc = ::BeginPaint( handle, &ps );
+	HDC hdcMem = ::CreateCompatibleDC( hdc );
+
+	HBITMAP g_hbmBall = ::LoadBitmap( GetModuleHandle( 0 ), MAKEINTRESOURCE( IDB_HUMAN ) );
+	HBITMAP g_hbmMask = ::LoadBitmap( GetModuleHandle( 0 ), MAKEINTRESOURCE( IDB_MASSk ) );
+	::GetObject( g_hbmBall, sizeof( BITMAP ), &bm );
+
+	SelectObject( hdcMem, g_hbmMask );
+	BitBlt( hdc, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCAND );
+
+	SelectObject( hdcMem, g_hbmBall );
+	BitBlt( hdc, 0, bm.bmHeight, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCPAINT );
+
+	::DeleteDC( hdcMem );
+	::EndPaint( handle, &ps );
 }
