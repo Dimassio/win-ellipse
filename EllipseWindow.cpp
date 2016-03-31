@@ -90,24 +90,52 @@ void CEllipseWindow::OnSize( LPARAM lParam )
 	ellipse.SetSize( newRect );
 	currWinHeight = newHeight;
 	currWinWidth = newWidth;
-	::InvalidateRect( handle, 0, TRUE );
+	::InvalidateRect( handle, 0, FALSE );
 }
 
 void CEllipseWindow::OnPaint()
 {
-	//drawBitmap(); todo
 	PAINTSTRUCT ps;
-	HDC hdc = ::BeginPaint( handle, &ps );  // Контекст устройства 
-	ellipse.Draw( hdc );
+	HDC hdc = BeginPaint( handle, &ps );  // Контекст устройства
+
+	RECT rect;
+	::GetClientRect( handle, &rect );
+	// DC, в памяти, НЕ НА ЭКРАНЕ
+	HDC newHdc = ::CreateCompatibleDC( hdc );
+	// Создаем Битмап на всю область
+	HBITMAP bitmap = ::CreateCompatibleBitmap( hdc, rect.right - rect.left, rect.bottom - rect.top );
+	// Выбираем битмапку 
+	HGDIOBJ oldbitmap = ::SelectObject( newHdc, bitmap ); // Возвращается предыдущую настройку
+
+	// ======================================
+	// Перерисовываем фон
+	HBRUSH brush = ::CreatePatternBrush( ::LoadBitmap( ::GetModuleHandle(0), MAKEINTRESOURCE( IDB_BITMAP1 ) ) );
+	::FillRect( newHdc, &rect, brush );
+	::DeleteObject( brush );
+
+	// Рисуем эллипс
+	ellipse.Draw( newHdc );
+
+	// Пишем текст
 	HFONT newFont = ::CreateFont( 25, 20, 120, 0, text.font, 3, 4, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
 								  DEFAULT_PITCH | FF_DONTCARE, L"Arial" );
+	HFONT oldFont = ( HFONT ) SelectObject( newHdc, newFont );
+	::DrawText( newHdc, text.string, text.length, &text.rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER );
+	::SelectObject( newHdc, oldFont ); // Переключились на прежнюю настройку шрифта
+	::DeleteObject( newFont );
+	::DeleteObject( oldFont );
+	// ========================================
+	// Переносим на контекст монитора контекст памяти, на котором мы рисовали
+	::BitBlt( hdc, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, newHdc, 0, 0, SRCCOPY );
+	// Переключились на битмапку, нанесенную на экран
+	::SelectObject( newHdc, oldbitmap ); 
 
-	HFONT oldFont = ( HFONT ) SelectObject( hdc, newFont );
-	int result = ::DrawText( hdc, text.string, text.length, &text.rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER );
-	::SelectObject( hdc, oldFont );
+	// Убираем за собой
+	::DeleteObject( bitmap );
+	::DeleteDC( newHdc );
+	::DeleteObject( oldbitmap );
+
 	::EndPaint( handle, &ps );
-	DeleteObject( oldFont );
-	DeleteObject( newFont );
 }
 
 void CEllipseWindow::OnChangeColor()
@@ -164,7 +192,7 @@ void CEllipseWindow::OnResetDialog()
 	::SetScrollPos( handle, SB_HORZ, 410, TRUE );
 	hScroll.currPos = 410;
 	vScroll.currPos = 250;
-	InvalidateRect( handle, 0, TRUE );
+	InvalidateRect( handle, 0, FALSE );
 	::SetWindowText( GetDlgItem( dialogHandle, IDC_EDIT1 ), text.string );
 	::CheckRadioButton( dialogHandle, IDC_RADIO1, IDC_RADIO3, IDC_RADIO1 );
 }
@@ -188,7 +216,7 @@ void CEllipseWindow::OnOkDialog( HWND hwndDlg )
 		text.string = buffer;
 		text.length = length;
 	}
-	::InvalidateRect( handle, 0, TRUE );
+	::InvalidateRect( handle, 0, FALSE );
 }
 
 void CEllipseWindow::OnShowDialog()
@@ -246,7 +274,7 @@ void CEllipseWindow::OnVScroll( WPARAM wParam )
 		text.rect.bottom -= delta;
 		text.rect.top -= delta;
 		SetScrollPos( handle, SB_VERT, vScroll.currPos, TRUE );
-		::InvalidateRect( handle, 0, TRUE );
+		::InvalidateRect( handle, 0, FALSE );
 	}
 }
 
@@ -278,7 +306,7 @@ void CEllipseWindow::OnHScroll( WPARAM wParam )
 		text.rect.left -= delta;
 		text.rect.right -= delta;
 		SetScrollPos( handle, SB_HORZ, hScroll.currPos, TRUE );
-		InvalidateRect( handle, 0, TRUE );
+		InvalidateRect( handle, 0, FALSE );
 	}
 }
 
