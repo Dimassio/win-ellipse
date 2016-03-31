@@ -109,9 +109,11 @@ void CEllipseWindow::OnPaint()
 
 	// ======================================
 	// Перерисовываем фон
-	HBRUSH brush = ::CreatePatternBrush( ::LoadBitmap( ::GetModuleHandle(0), MAKEINTRESOURCE( IDB_BITMAP1 ) ) );
+	HBITMAP back = ::LoadBitmap( ::GetModuleHandle( 0 ), MAKEINTRESOURCE( IDB_BITMAP1 ) );
+	HBRUSH brush = ::CreatePatternBrush( back );
 	::FillRect( newHdc, &rect, brush );
 	::DeleteObject( brush );
+	::DeleteObject( back );
 
 	// Рисуем эллипс
 	ellipse.Draw( newHdc );
