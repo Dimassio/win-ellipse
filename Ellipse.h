@@ -1,14 +1,11 @@
 #pragma once
 #include <Windows.h>
 
-const int MinEllipseSizeX = 30;
-const int MinEllipseSizeY = 30;
-
 class CEllipse {
 public:
 	CEllipse();
 
-	CEllipse( const POINT& center, const POINT& size, const COLORREF color );
+	CEllipse( const POINT& center, const RECT& size, const COLORREF color );
 
 	void Draw( HDC dc ) const;
 
@@ -16,7 +13,7 @@ public:
 
 	void SetCenter( const int x, const int y );
 
-	void SetSize( const int x, const int y );
+	void SetSize( const RECT& rect );
 
 	int GetLeft() const;
 	
@@ -26,8 +23,10 @@ public:
 	
 	int GetBottom() const;
 
+	POINT GetCenter() const;
+
 private:
 	POINT center;
-	POINT size; // Расстояние от центра
+	RECT rect;
 	COLORREF color;
 };
