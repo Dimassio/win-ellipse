@@ -25,6 +25,8 @@ public:
 
 	POINT GetCenter() const;
 
+	void Move( int delta, int direction );
+
 private:
 	POINT center;
 	RECT rect;

@@ -1,4 +1,5 @@
 #include "Ellipse.h"
+#include <cassert>
 
 CEllipse::CEllipse()
 {
@@ -57,4 +58,22 @@ int CEllipse::GetBottom() const
 POINT CEllipse::GetCenter() const
 {
 	return center;
+}
+
+void CEllipse::Move( int delta, int direction )
+{
+	switch( direction ) {
+		case SB_VERT:
+			center.y -= delta;
+			rect.top -= delta;
+			rect.bottom -= delta;
+			break;
+		case SB_HORZ:
+			center.x -= delta;
+			rect.left -= delta;
+			rect.right -= delta;
+			break;
+		default:
+			assert( false );
+	}
 }

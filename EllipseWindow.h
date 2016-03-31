@@ -28,6 +28,7 @@ public:
 	void OnCloseDialog();
 	void OnChangeColor();
 	void OnOkDialog( HWND handle );
+	void OnResetDialog();
 
 protected:
 	// Window
@@ -45,8 +46,10 @@ private:
 	int currWinHeight;
 
 	CEllipse ellipse;
+	CEllipse baseEllipse;
 
 	TText text;
+	TText baseText;
 
 	TScroll vScroll;
 	TScroll hScroll;

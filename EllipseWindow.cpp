@@ -5,9 +5,6 @@
 
 CEllipseWindow::CEllipseWindow()
 {
-	text.string = L"Hello world!";
-	text.length = 13;
-	text.font = FW_NORMAL;
 }
 
 CEllipseWindow::~CEllipseWindow()
@@ -54,10 +51,17 @@ bool CEllipseWindow::Create( HINSTANCE hInstance )
 	ellipse.SetSize( newRect );
 
 	// Text initializing
+	text.string = L"Hello world!";
+	text.length = 12;
+	text.font = FW_NORMAL;
 	text.rect.left = ellipse.GetLeft();
 	text.rect.right = ellipse.GetRight();
 	text.rect.bottom = ellipse.GetBottom();
 	text.rect.top = ellipse.GetTop();
+
+	// Base settings
+	baseEllipse = ellipse;
+	baseText = text;
 	return handle != 0;
 }
 
@@ -99,7 +103,7 @@ void CEllipseWindow::OnPaint()
 								  DEFAULT_PITCH | FF_DONTCARE, L"Arial" );
 
 	HFONT oldFont = ( HFONT ) SelectObject( hdc, newFont );
-	::DrawText( hdc, text.string, text.length, &text.rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER | WS_EX_TRANSPARENT );
+	int result = ::DrawText( hdc, text.string, text.length, &text.rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER );
 	::SelectObject( hdc, oldFont );
 	::EndPaint( handle, &ps );
 	DeleteObject( oldFont );
@@ -137,6 +141,9 @@ BOOL WINAPI DialogProc( HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam
 				case IDC_CHANGE_COLOR:
 					currentWindow->OnChangeColor();
 					return TRUE;
+				case IDC_RESET:
+					currentWindow->OnResetDialog();
+					return TRUE;
 				case IDOK:
 					currentWindow->OnOkDialog( hwndDlg );
 					currentWindow->OnCloseDialog();
@@ -147,6 +154,19 @@ BOOL WINAPI DialogProc( HWND hwndDlg, UINT message, WPARAM wParam, LPARAM lParam
 			}
 	}
 	return FALSE;
+}
+
+void CEllipseWindow::OnResetDialog()
+{
+	ellipse = baseEllipse;
+	text = baseText;
+	::SetScrollPos( handle, SB_VERT, 250, TRUE );
+	::SetScrollPos( handle, SB_HORZ, 410, TRUE );
+	hScroll.currPos = 410;
+	vScroll.currPos = 250;
+	InvalidateRect( handle, 0, TRUE );
+	::SetWindowText( GetDlgItem( dialogHandle, IDC_EDIT1 ), text.string );
+	::CheckRadioButton( dialogHandle, IDC_RADIO1, IDC_RADIO3, IDC_RADIO1 );
 }
 
 void CEllipseWindow::OnOkDialog( HWND hwndDlg )
@@ -187,7 +207,7 @@ void CEllipseWindow::OnShowDialog()
 		default:
 			assert( false );
 	}
-	::SendMessage( dialogHandle, WM_SETTEXT, ( WPARAM ) text.length + 1, ( LPARAM ) text.string );
+	::SetWindowText( GetDlgItem( dialogHandle, IDC_EDIT1 ), text.string );
 	::ShowWindow( dialogHandle, SW_SHOWNORMAL );
 }
 
@@ -211,6 +231,7 @@ void CEllipseWindow::OnVScroll( WPARAM wParam )
 		case SB_PAGEDOWN:
 			vScroll.currPos = min( vScroll.maxRange, vScroll.currPos + 10 );
 			break;
+		case SB_THUMBTRACK:
 		case SB_THUMBPOSITION:
 			vScroll.currPos = HIWORD( wParam );
 			break;
@@ -218,9 +239,14 @@ void CEllipseWindow::OnVScroll( WPARAM wParam )
 			break;
 	}
 	// Изменили положение скролла
-	if( vScroll.currPos != GetScrollPos( handle, SB_VERT ) ) {
+	// Пока не сделали SetScrollPos она не изменится
+	int delta = vScroll.currPos - GetScrollPos( handle, SB_VERT );
+	if( delta != 0 ) {
+		ellipse.Move( delta, SB_VERT );
+		text.rect.bottom -= delta;
+		text.rect.top -= delta;
 		SetScrollPos( handle, SB_VERT, vScroll.currPos, TRUE );
-		InvalidateRect( handle, NULL, FALSE );
+		::InvalidateRect( handle, 0, TRUE );
 	}
 }
 
@@ -239,29 +265,33 @@ void CEllipseWindow::OnHScroll( WPARAM wParam )
 		case SB_PAGERIGHT:
 			hScroll.currPos = min( hScroll.maxRange, hScroll.currPos + 10 );
 			break;
+		case SB_THUMBTRACK:
 		case SB_THUMBPOSITION:
 			hScroll.currPos = HIWORD( wParam );
 			break;
 		default:
 			break;
 	}
-	// Изменили положение скролла
-	if( hScroll.currPos != GetScrollPos( handle, SB_HORZ ) ) {
+	int delta = hScroll.currPos - GetScrollPos( handle, SB_HORZ );
+	if( delta != 0 ) {
+		ellipse.Move( delta, SB_HORZ );
+		text.rect.left -= delta;
+		text.rect.right -= delta;
 		SetScrollPos( handle, SB_HORZ, hScroll.currPos, TRUE );
-		InvalidateRect( handle, NULL, FALSE );
+		InvalidateRect( handle, 0, TRUE );
 	}
 }
 
 void CEllipseWindow::OnCreate()
 {
-	vScroll.currPos = 0;
+	vScroll.currPos = 250;
 	vScroll.maxRange = 500;
 	::SetScrollRange( handle, SB_VERT, 0, 500, FALSE );
-	::SetScrollPos( handle, SB_VERT, 0, TRUE );
-	hScroll.currPos = 0;
+	::SetScrollPos( handle, SB_VERT, 250, TRUE );
+	hScroll.currPos = 410;
 	hScroll.maxRange = 820;
 	::SetScrollRange( handle, SB_HORZ, 0, 820, FALSE );
-	::SetScrollPos( handle, SB_HORZ, 0, TRUE );
+	::SetScrollPos( handle, SB_HORZ, 410, TRUE );
 }
 
 LRESULT WINAPI CEllipseWindow::windowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
