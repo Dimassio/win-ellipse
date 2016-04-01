@@ -21,7 +21,7 @@ bool CEllipseWindow::RegisterClass( HINSTANCE hInstance )
 	tag.cbWndExtra = 0;
 	tag.hIcon = LoadIcon( NULL, IDI_APPLICATION );
 	tag.hCursor = LoadCursor( NULL, IDC_ARROW );
-	tag.hbrBackground = CreatePatternBrush( LoadBitmap( hInstance, MAKEINTRESOURCE( IDB_BITMAP1 ) ) );
+	tag.hbrBackground = ( HBRUSH )GetStockObject( WHITE_BRUSH );
 	tag.lpszMenuName = MAKEINTRESOURCE( IDR_MENU1 );
 	tag.lpszClassName = L"Ellipse";
 	tag.hInstance = hInstance;
@@ -103,25 +103,19 @@ void CEllipseWindow::OnPaint()
 	// DC, в памяти, НЕ НА ЭКРАНЕ
 	HDC newHdc = ::CreateCompatibleDC( hdc );
 	// Создаем Битмап на всю область
-	HBITMAP bitmap = ::CreateCompatibleBitmap( hdc, rect.right - rect.left, rect.bottom - rect.top );
+	HBITMAP bitmap = ::LoadBitmap( ::GetModuleHandle( 0 ), MAKEINTRESOURCE( IDB_BITMAP1 ) );
 	// Выбираем битмапку 
 	HGDIOBJ oldbitmap = ::SelectObject( newHdc, bitmap ); // Возвращается предыдущую настройку
 
 	// ======================================
-	// Перерисовываем фон
-	HBITMAP back = ::LoadBitmap( ::GetModuleHandle( 0 ), MAKEINTRESOURCE( IDB_BITMAP1 ) );
-	HBRUSH brush = ::CreatePatternBrush( back );
-	::FillRect( newHdc, &rect, brush );
-	::DeleteObject( brush );
-	::DeleteObject( back );
-
+	
 	// Рисуем эллипс
 	ellipse.Draw( newHdc );
 
 	// Пишем текст
 	HFONT newFont = ::CreateFont( 25, 20, 120, 0, text.font, 3, 4, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
 								  DEFAULT_PITCH | FF_DONTCARE, L"Arial" );
-	HFONT oldFont = ( HFONT ) SelectObject( newHdc, newFont );
+	HFONT oldFont = ( HFONT ) SelectObject( newHdc, newFont ); // Переключаемся на новый шрифт
 	::DrawText( newHdc, text.string, text.length, &text.rect, DT_SINGLELINE | DT_CENTER | DT_VCENTER );
 	::SelectObject( newHdc, oldFont ); // Переключились на прежнюю настройку шрифта
 	::DeleteObject( newFont );
@@ -129,9 +123,7 @@ void CEllipseWindow::OnPaint()
 	// ========================================
 	// Переносим на контекст монитора контекст памяти, на котором мы рисовали
 	::BitBlt( hdc, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, newHdc, 0, 0, SRCCOPY );
-	// Переключились на битмапку, нанесенную на экран
-	::SelectObject( newHdc, oldbitmap ); 
-
+	
 	// Убираем за собой
 	::DeleteObject( bitmap );
 	::DeleteDC( newHdc );
